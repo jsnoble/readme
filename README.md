@@ -19,7 +19,7 @@ Example Job
             "size": 5000,
             "start": "2015-07-08",
             "end": "2015-07-09",
-            "interval": "5_mins",
+            "interval": "5min",
             "date_field_name": "created",
             "full_response": true
         },
@@ -64,14 +64,18 @@ Example configuration if lifecycle is set to "once"
       "_op": "elasticsearch_reader",
       "index": "events-*",
       "size": 5000,
-      "start": "2015-10-26T21:33:27.190Z",
-      "end": ""2015-10-27T21:33:27.190Z",
-      "interval": "10_mins",
+      "start": "2015-10-26T21:33:27.190-07:00",
+      "end": ""2015-10-27T21:33:27.190-07:00",
+      "interval": "10min",
       "date_field_name": "created",
+      "query": "someLucene: query",
       "full_response": true
     }
 ```
-In this mode, there is a definite start and end time. Each slice will be based off of the interval and size configurations. If the number of documents exceed the size within a given interval, it will recurse and and split the interval in half until the number of documents is less than or equal to size. If this cannot be achieved then the size restraint will be bypassed and the reader will process a one millisecond interval.
+In this mode, there is a definite start (inclusive) and end time (exclusive). Each slice will be based off of the interval and size configurations.
+If the number of documents exceed the size within a given interval, it will recurse and and split the interval in half
+until the number of documents is less than or equal to size. If this cannot be achieved then the size restraint will be
+bypassed and the reader will process a one millisecond interval.
 
 Once it has reached the time specified at end and all workers have finished, the main process will finish and exit.
 
@@ -81,16 +85,15 @@ Once it has reached the time specified at end and all workers have finished, the
 \_op| Name of operation, it must reflect the exact name of the file | String | required
 index | Which index to read from | String | required
 size | The limit to the number of docs pulled in a chunk, if the number of docs retrieved by the slicer exceeds this number, it will cause the slicer to recurse to provide a smaller batch | Number | optional, defaults to 5000
-start | The start date ( as ISOstring or in ms) to which it will read from | String/Number | required, inclusive
-end | The end date (ISOstring or in ms) to which it will read to| String/Number | required, exclusive
-interval | The time interval in which it will read from, the number must be separated from the unit of time by an underscore. The unit of time may be months, weeks, days, hours, minutes, seconds, millesconds or their appropriate abbreviations | String | optional, default set to "5_minutes"
+start | The start date to which it will read from | String/Number/ elasticsearch date match syntax | required, inclusive
+end | The end date to which it will read to| String/Number/ elasticsearch date match syntax | required, exclusive
+interval | The time interval in which the reader will increment by. The unit of time may be months, weeks, days, hours, minutes, seconds, millesconds or their appropriate abbreviations | String | optional, default set to "5mins"
 date_field_name | field name where the date of the document used for searching resides | String | required
 full_response | If set to true, it will return the native response from elasticsearch with all meta-data included. If set to false it will return an array of the actual documents, no meta data included | Boolean | optional, defaults to false
+query | specify any valid lucene query for elasticsearch to use  | String | optional
 
 
-The persistent mode expects that there is a continuous stream of new data coming into elasticsearch and that it has a date field when it was uploaded. On initializing this job, it will begin to check to see if there are documents a minute ahead of the time it initialized. Once it has found documents a minute ahead it assumes the documents for the current minute are complete and will begin processing them. If after a minute there are no documents found then the timer will increment and begin searching for documents in the next minute.
-
-A noticeable difference in the configurations is that "start" and "end" are time ranges within that given minute. If you just have one instance of teraslice then it should be the whole minute (0 to 59). However you may use multiple instances reading a specific portion of that minute (ie 2 instances reading from 0-29, 30-59)
+start and end may be specified in elasticsearch\'s[date math syntax](https://www.elastic.co/guide/en/elasticsearch/reference/2.x/common-options.html#date-math)
 
 Example configuration if lifecycle is set to "persistent"
 
@@ -99,21 +102,38 @@ Example configuration if lifecycle is set to "persistent"
      "_op": "elasticsearch_reader",
      "index": "someIndex",
      "size": 5000,
-     "start": "00_s",
-     "end": "29_s",
+     "interval": "5s"
+     "delay": "1m"
      "date_field_name": "created",
      "full_response": true
 }
 ```
-Differences
+####persistent mode####
+The persistent mode expects that there is a semi-continuous stream of data coming into elasticsearch and that it has
+ a date field when it was uploaded. On initializing this job, it will begin reading at the current date (new Date())
+ minus the delay. The reader will then begin processing at the interval chunk you specify, and will read the next
+ interval after the interval time has passed.
 
+
+ E.g. using the job listed above and current time is "2016-01-27T13:48:05-07:00", it will attempt
+ to start reading at start:"2016-01-27T13:47:00-07:00", end: "2016-01-27T13:47:05-07:00". After 5s has passed it
+ will read start:"2016-01-27T13:47:05-07:00", end: "2016-01-27T13:47:10-07:00" thus keeping the 1m delay.
+
+
+ The delay mechanism allows you to adjust for your elasticsearch refresh rate, network latency so that it can provide
+  ample time to ensure that your data has been flushed.
+
+Differences
+No start or end keys
 | Configuration | Description | Type |  Notes
 |:---------: | :--------: | :------: | :------:
-start | The start time of the given minute to begin reading. Needs to be formatted like the interval configuration | String | required, example "5_s"
-end | The end time (inclusive) of the given minute from which your reading. Needs to be formatted like the interval configuration | String | required, example "10_s"
+delay | Offset applied to reader of when to begin reading, must be in interval syntax e.g "5s" | String | required
 
 ###elasticsearch_data_generator###
-Used to generate sample data for your elasticsearch cluster. You may use the default data generator which creates randomized data fitting the format listed below or you may create your own custom schema using the [json-schema-faker](https://github.com/json-schema-faker/json-schema-faker) package to create data to whatever schema you desire.
+Used to generate sample data for your elasticsearch cluster. You may use the default data generator which creates
+randomized data fitting the format listed below or you may create your own custom schema using the
+ [json-schema-faker](https://github.com/json-schema-faker/json-schema-faker) package to create data to whatever
+  schema you desire.
 
 Default generated data :
 ```
@@ -123,6 +143,7 @@ Default generated data :
   uuid: '408433ff-9495-4d1c-b066-7f9668b168f0',
   ipv6: '8188:b9ad:d02d:d69e:5ca4:05e2:9aa5:23b0',
   location: '-25.40587, 56.56418',
+  created: "2016-01-19T13:33:09.356-07:00"
   bytes: 4850020 }
 
 ```
@@ -132,16 +153,42 @@ Example configuration
 {
     "_op": "elasticsearch_data_generator",
     "size": 25000000,
-    "file_path": "some/path/to/file.js"
+    "file_path": "some/path/to/file.js",
+    "format": "isoBetween",
+    "start": "2015-08-01",
+    "end": "2015-12-30"
 }
 ```
+In once mode, this will created a total of 25 million docs with dates ranging from 2015-08-01 to 2015-12-30. The dates
+will appear in "2015-11-19T13:48:08.426-07:00" format.
 
 | Configuration | Description | Type |  Notes
 |:---------: | :--------: | :------: | :------:
 \_op | Name of operation, it must reflect the exact name of the file | String | required
 size | If lifecycle is set to "once", then size is the total number of documents that the generator will make. If lifecycle is set to "persistent", then this generator will will constantly stream data to elasticsearch in chunks as big as the size indicated | Number | required
 file_path | File path to where custom schema is located | String | optional, the schema must be exported Node style "module.exports = schema"
+format | specify any provided formats listed in /lib/utils/data_utils for the default generator| String | optional, defaults to "dateNow"
+start | start of date range | String | optional, only used with format isoBetween or utcBetween, defaults to Thu Jan 01 1970 00:00:00 GMT-0700 (MST)
+end | end of date range | String | optional, only used with format isoBetween or utcBetween, defaults to new Date()
 
+
+####Description of formats available####
+There are two categories of formats, ones that return the current date at which the function runs, or one that returns
+a date within a given range. Note for the non-range category, technically if the job takes 5 minutes to run, you will have
+dates ranging from the time you started the job up until the time it finished, so its still a range but not as one that spans
+hours, days weeks etc.
+
+
+| Format | Description |
+|:---------: | :--------:
+dateNow | will create a new date in "2016-01-19T13:48:08.426-07:00" format, preserving local time
+utcDate | will create a new utc date e.g "2016-01-19T20:48:08.426Z"
+utcBetween | similar to utcDate, but uses start and end keys in the job config to specify range
+isoBetween | similar to dateNow, but uses start and end keys in the job config to specify range
+
+ ####persistent mode####
+ The data generator will continually stream data into elasticsearch, the "size" key" switches from the total number
+ of documents created to how big each slice is when sent to elasticsearch
 
 ###file_import###
 Import data read from files to elasticsearch. This will read the entire file, the data is expected to be stored as JSON.
@@ -168,11 +215,11 @@ This processor formats the incoming data to prepare it for the elasticsearch bul
 Example configuration
 ```
 {
-     op: 'elasticsearch_index_selector',
-     type: 'events',
-     indexPrefix: 'events',
-     timeseries: 'daily',
-     date_field: '@timestamp'
+     "op": "elasticsearch_index_selector",
+     "type": "events",
+     "indexPrefix": "events",
+     "timeseries": "daily",
+     "date_field": "created"
 }
 ```
 | Configuration | Description | Type |  Notes
