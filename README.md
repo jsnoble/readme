@@ -202,7 +202,8 @@ utcDate | will create a new utc date e.g "2016-01-19T20:48:08.426Z"
 utcBetween | similar to utcDate, but uses start and end keys in the job config to specify range
 isoBetween | similar to dateNow, but uses start and end keys in the job config to specify range
 
- #### persistent mode ####
+
+#### persistent mode ####
  The data generator will continually stream data into elasticsearch, the "size" key" switches from the total number
  of documents created to how big each slice is when sent to elasticsearch
 
