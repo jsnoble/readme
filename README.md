@@ -48,7 +48,7 @@ lifecycle | Determines system exiting behaviour. Set to either **"once"** which 
 analytics | Determines if analytics should be ran for each slice. If used the native analytics will count the number of documents entering and leaving each step as well as the time it took and log it with the worker id, pid and what slice it was working on. You may specify a custom reporter to be used instead of the native analytics functionality. Please refer to the reporters section for more information. | Boolean | optional, even if you specify a reporter, this must be set to true for it to run
 operations | An array containing all the operations as well as their configurations. Typically the first is the reader and the last is the sender, with as many intermediate processors as needed. | Array | required
 max_retries | Number of times a given slice of data will attempt to process before continuing on | Number | optional
-workers | Number of worker instances that will process data, depending on the nature of the operations you may choose to over subscribe the number of workers compared to the number of cpu's | Number | optional, defaults to 5
+workers | Number of worker instances that will process data, depending on the nature of the operations you may choose to over subscribe the number of workers compared to the number of cpu's | Number | optional, defaults to 5, if the number of workers for the job is set above workers specified in system configuration, a warning is passed and the workers set in the system configuration will be used,
 progressive_start | Period of time (in seconds) in which workers will evenly instantiate, not specifiying this option all workers will spin up at the same time   | Number | optional, if you have 10 workers and this option is set to 20, then a new worker will instantiate every 2 seconds
 
 ##Readers##
@@ -93,7 +93,7 @@ full_response | If set to true, it will return the native response from elastics
 query | specify any valid lucene query for elasticsearch to use  | String | optional
 
 
-start and end may be specified in elasticsearch\'s[date math syntax](https://www.elastic.co/guide/en/elasticsearch/reference/2.x/common-options.html#date-math)
+start and end may be specified in elasticsearch\'s [date math syntax](https://www.elastic.co/guide/en/elasticsearch/reference/2.x/common-options.html#date-math)
 
 Example configuration if lifecycle is set to "persistent"
 
@@ -108,7 +108,7 @@ Example configuration if lifecycle is set to "persistent"
      "full_response": true
 }
 ```
-####persistent mode####
+#### persistent mode ####
 The persistent mode expects that there is a semi-continuous stream of data coming into elasticsearch and that it has
  a date field when it was uploaded. On initializing this job, it will begin reading at the current date (new Date())
  minus the delay. The reader will then begin processing at the interval chunk you specify, and will read the next
@@ -123,13 +123,25 @@ The persistent mode expects that there is a semi-continuous stream of data comin
  The delay mechanism allows you to adjust for your elasticsearch refresh rate, network latency so that it can provide
   ample time to ensure that your data has been flushed.
 
-Differences
+##### Differences #####
 No start or end keys
+
+
 | Configuration | Description | Type |  Notes
 |:---------: | :--------: | :------: | :------:
 delay | Offset applied to reader of when to begin reading, must be in interval syntax e.g "5s" | String | required
 
-###elasticsearch_data_generator###
+##### Note on common errors #####
+- You must be aware of how your dates are saved in elasticsearch in a given index. If you specify your start or end dates
+  as common '2016-01-23' dates, it is likely the reader will not reach data that have dates set in utc as the time zone
+   difference may set it in the next day.
+
+- If you are using elasticsearch >= 2.1.0 they introduced a default query limit of 10000 docs for each index which will
+throw an error if you query anything above that. This will pose an issue if you set the size to big or if you have more
+  than 10000 docs within 1 millisecond, which is the shortest interval the slicer will attempt to make before overriding
+  your size setting for that slice. Your best option is to raise the max_result_window setting for that given index.
+
+### elasticsearch_data_generator ###
 Used to generate sample data for your elasticsearch cluster. You may use the default data generator which creates
 randomized data fitting the format listed below or you may create your own custom schema using the
  [json-schema-faker](https://github.com/json-schema-faker/json-schema-faker) package to create data to whatever
