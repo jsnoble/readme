@@ -39,7 +39,7 @@ Example Job
 }
 ```
 
-Job level configuration options
+#### Job level configuration options ####
 
 | Configuration | Description | Type |  Notes
 |:---------: | :--------: | :------: | :------:
@@ -85,15 +85,17 @@ Once it has reached the time specified at end and all workers have finished, the
 \_op| Name of operation, it must reflect the exact name of the file | String | required
 index | Which index to read from | String | required
 size | The limit to the number of docs pulled in a chunk, if the number of docs retrieved by the slicer exceeds this number, it will cause the slicer to recurse to provide a smaller batch | Number | optional, defaults to 5000
-start | The start date to which it will read from | String/Number/ elasticsearch date match syntax | required, inclusive
-end | The end date to which it will read to| String/Number/ elasticsearch date match syntax | required, exclusive
+start | The start date to which it will read from | String/Number/ elasticsearch date math syntax | required, inclusive
+end | The end date to which it will read to| String/Number/ elasticsearch date math syntax | required, exclusive
 interval | The time interval in which the reader will increment by. The unit of time may be months, weeks, days, hours, minutes, seconds, millesconds or their appropriate abbreviations | String | optional, default set to "5mins"
 date_field_name | field name where the date of the document used for searching resides | String | required
 full_response | If set to true, it will return the native response from elasticsearch with all meta-data included. If set to false it will return an array of the actual documents, no meta data included | Boolean | optional, defaults to false
 query | specify any valid lucene query for elasticsearch to use  | String | optional
 
 
-start and end may be specified in elasticsearch\'s [date math syntax](https://www.elastic.co/guide/en/elasticsearch/reference/2.x/common-options.html#date-math)
+start and end may be specified in elasticsearch's [date math syntax](https://www.elastic.co/guide/en/elasticsearch/reference/2.x/common-options.html#date-math)
+
+#### persistent mode ####
 
 Example configuration if lifecycle is set to "persistent"
 
@@ -108,7 +110,7 @@ Example configuration if lifecycle is set to "persistent"
      "full_response": true
 }
 ```
-#### persistent mode ####
+
 The persistent mode expects that there is a semi-continuous stream of data coming into elasticsearch and that it has
  a date field when it was uploaded. On initializing this job, it will begin reading at the current date (new Date())
  minus the delay. The reader will then begin processing at the interval chunk you specify, and will read the next
@@ -149,14 +151,16 @@ randomized data fitting the format listed below or you may create your own custo
 
 Default generated data :
 ```
-{ ip: '1.12.146.136',
+{
+  ip: '1.12.146.136',
   userAgent: 'Mozilla/5.0 (Windows NT 5.2; WOW64; rv:8.9) Gecko/20100101 Firefox/8.9.9',
   url: 'https://gabrielle.org',
   uuid: '408433ff-9495-4d1c-b066-7f9668b168f0',
   ipv6: '8188:b9ad:d02d:d69e:5ca4:05e2:9aa5:23b0',
   location: '-25.40587, 56.56418',
-  created: "2016-01-19T13:33:09.356-07:00"
-  bytes: 4850020 }
+  created: "2016-01-19T13:33:09.356-07:00",
+  bytes: 4850020
+}
 
 ```
 
@@ -184,7 +188,7 @@ start | start of date range | String | optional, only used with format isoBetwee
 end | end of date range | String | optional, only used with format isoBetween or utcBetween, defaults to new Date()
 
 
-####Description of formats available####
+#### Description of formats available ####
 There are two categories of formats, ones that return the current date at which the function runs, or one that returns
 a date within a given range. Note for the non-range category, technically if the job takes 5 minutes to run, you will have
 dates ranging from the time you started the job up until the time it finished, so its still a range but not as one that spans
@@ -198,11 +202,11 @@ utcDate | will create a new utc date e.g "2016-01-19T20:48:08.426Z"
 utcBetween | similar to utcDate, but uses start and end keys in the job config to specify range
 isoBetween | similar to dateNow, but uses start and end keys in the job config to specify range
 
- ####persistent mode####
+ #### persistent mode ####
  The data generator will continually stream data into elasticsearch, the "size" key" switches from the total number
  of documents created to how big each slice is when sent to elasticsearch
 
-###file_import###
+### file_import ###
 Import data read from files to elasticsearch. This will read the entire file, the data is expected to be stored as JSON.
 
 Example configuration
