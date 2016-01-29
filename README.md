@@ -329,3 +329,118 @@ user | User to use when writing the files | String | optional, defaults to hdfs
 ##Reporters##
 
 
+### System Configuration ###
+This entails the configuration for the underlying terafoundation and teraslice service. It can either be a json or yaml
+ file. You can either place the file at the root of your app at /config.json (or /config.yaml) or pass it in via the
+ commandline at startup using the flag -c 'path/to/configFile'.
+
+ Example
+
+ `node service.js -c /some/path/toFIle`
+
+ Example config file
+
+ ```
+ {
+   "teraslice": {
+     "teraslice_ops_directory": "/Users/jarednoble/Desktop/fakeOps",
+     "shutdown_timeout": 30
+   },
+   "terafoundation": {
+     "environment": "development",
+     "log_path": "/Users/jarednoble/Desktop/logs",
+     "workers":  4,
+     "connectors": {
+       "elasticsearch": {
+         "default": {
+           "host": [
+             "127.0.0.1:9200"
+           ],
+           "keepAlive": true,
+           "maxRetries": 5,
+           "maxSockets": 20
+         },
+          "secondary": {
+             "host": [
+               "127.0.0.1:9200"
+              ],
+             "keepAlive": true,
+             "maxRetries": 5,
+             "maxSockets": 20
+          }
+       }
+     }
+   }
+ }
+ ```
+#### Teraslice options ####
+
+
+| Configuration | Description | Type |  Notes
+|:---------: | :--------: | :------: | :------:
+teraslice_ops_directory | You may provide a file path to a directory from which teraslice will attempt to retrieve any custom modules from | String | optional
+shutdown_timeout | After shutdown sequence has initiated, the number here represents the time it will allow any process to finish before forcing it to close | Number | optional, defaults to 60 seconds
+port | port to which slicer to listen on| number | optional, defaults to 5678
+host | ip or hostname where slicer resides | String | defaults to localhost for development
+
+
+#### Terafoundation options ####
+
+| Configuration | Description | Type |  Notes
+|:---------: | :--------: | :------: | :------:
+log_path | Path to where you would like to store logs pertaining to jobs as well as system logs | String | required
+environment | Set to either development or production, in development logs are sent to the console, while in production they are written to file located within the dir you specify at log_path| String | defaults to development
+workers | The maximum number of available workers that you will allow to be made | Number | optional, defaults to number of cpu's you have
+connectors | List of all databases used and connection configurations  | Object | required
+
+##### connectors #####
+
+The connectors is an object whose keys correspond to supported databases. Those keys should be set to an object which holds
+endpoints, allowing you to specify multiple connections and connection configurations for each database.
+
+For Example
+
+```
+"connectors": {
+      "elasticsearch": {
+        "default": {
+          "host": [
+            "127.0.0.1:9200"
+          ],
+          "keepAlive": false,
+          "maxRetries": 5,
+          "maxSockets": 20
+        },
+        "secondary": {
+          "host": [
+             "someOtherIP:9200"
+          ],
+          "keepAlive": true,
+          "maxRetries": 8,
+          "maxSockets": 30
+        }
+      },
+      "statsd": {
+        "default": {
+          "host": "127.0.0.1",
+          "mock": false
+        }
+      },
+      "mongodb": {
+        "default": {
+          "servers": "mongodb://localhost:27017/test"
+        }
+      },
+      "redis": {
+        "default": {
+          "host": "127.0.0.1"
+        }
+      }
+    }
+```
+
+In this example we specify four different connections to elasticsearch, statsd, mongod and redis. We follow an idiom of
+naming the primary endpoint for each of them to be called `default`. Within each endpoint you may create custom configurations
+that will be validated against the defaults specified in node_modules/terafoundation/lib/connectors. As noted above,in elasticsearch there
+  is the `default` endpoint and the `secondary` endpoint which connects to a different elasticsearch cluster each having
+  different configurations. These different endpoints can be retrieved through terafoundations's api.
